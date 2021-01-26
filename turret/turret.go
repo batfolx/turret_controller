@@ -6,7 +6,7 @@ import (
 	"github.com/serial"
 	"gocv.io/x/gocv"
 	"image/color"
-	"os"
+	"time"
 )
 
 func BeginDetection() {
@@ -98,6 +98,7 @@ func BeginDetectionHeadless() {
 
 	// open display window
 	window := gocv.NewWindow("Face Detect")
+	window.ResizeWindow(640, 480)
 	defer window.Close()
 
 	white := color.RGBA{
@@ -124,6 +125,8 @@ func BeginDetectionHeadless() {
 	upperY := float32((height / 2) + THRESH_HOLD)
 	fmt.Printf("Lower X %f, Upper X %f, Lower Y %f, Upper Y %f\n", lowerX, upperX, lowerY, upperY)
 	fmt.Printf("start reading camera device: %v\n", deviceID)
+
+	moveBy := 1
 	for {
 		if ok := webcam.Read(&img); !ok {
 			fmt.Printf("cannot read device %v\n", deviceID)
@@ -146,50 +149,53 @@ func BeginDetectionHeadless() {
 						|       |
 						v       v
 				----------------- <- max Y is here
-				|				|
-				|				|
-				|		.		| <- midY = ((maxY - minY) / 2)
-				|				|
-				|				|
+				|               |
+				|               |
+				|       .       | <- midY = ((maxY - minY) / 2)
+				|               |
+				|               |
 				-----------------
 
 			*/
 			middleX := float32(rect.Max.X) - float32((rect.Max.X-rect.Min.X)/2)
 			middleY := float32(rect.Max.Y) - float32((rect.Max.Y-rect.Min.Y)/2)
-			//fmt.Printf("X max %d, X min %d\n", rect.Max.X, rect.Min.X)
+			fmt.Printf("Mid X %f, Mid Y %f, one foot away\n", middleX, middleY)
+			fmt.Printf("Number of pixels across X, one foot away %d, number of pixels across Y, one foot away %d\n", rect.Max.X-rect.Max.Y, rect.Max.Y-rect.Min.Y)
 
 			baseServo := 0
 			// calibration for X
 			if lowerX < middleX && middleX < upperX {
-				fmt.Printf("X COORDINATE IS GOOD!\n")
+				//fmt.Printf("X COORDINATE IS GOOD!\n")
 				baseServo = 0
 			} else if middleX < lowerX {
-				fmt.Printf("X: MOVE THE CAMERA RIGHT\n")
-				baseServo = 10
+				//fmt.Printf("X: MOVE THE CAMERA RIGHT\n")
+				baseServo = moveBy
 			} else if middleX > upperX {
-				fmt.Printf("X: MOVE THE CAMERA LEFT\n")
-				baseServo = -10
+				//fmt.Printf("X: MOVE THE CAMERA LEFT\n")
+				baseServo = -moveBy
 			}
 
 			sideServo := 0
 			if lowerY < middleY && middleY < upperY {
-				fmt.Printf("Y COORDINATE IS GOOD!\n")
+				//fmt.Printf("Y COORDINATE IS GOOD!\n")
 				sideServo = 0
 
 			} else if middleY < lowerY {
-				fmt.Printf("Y: MOVE THE CAMERA DOWN\n")
-				sideServo = -10
+				//fmt.Printf("Y: MOVE THE CAMERA DOWN\n")
+				sideServo = -moveBy
 
 			} else if middleY > upperY {
-				fmt.Printf("Y: MOVE THE CAMERA UP\n")
-				sideServo = 10
+				//fmt.Printf("Y: MOVE THE CAMERA UP\n")
+				sideServo = moveBy
 			}
 
 			_ = SendData(usb, baseServo, sideServo)
+			break
 		}
 
 		window.IMShow(img)
 		window.WaitKey(1)
+		time.Sleep(1)
 
 	}
 }
@@ -207,12 +213,18 @@ func SendData(usb *serial.Port, base int, side int) error {
 
 }
 
-func calculateMiddle(end int, start int) float32 {
+// calculates the angle needed to turn in the x direction
+func calculateRotationX(hitPosition int, imageCenter int, imageWidth int) int {
 
-	return float32((end - start) / 2)
+	// calculate total pixels needed to turn to the hit position
+	totalPixels := imageCenter - hitPosition
+	//sign := totalPixels < 0
+
+	// translate pixels to an angle to turn, defaulting to 1 if too low
+	// assuming 1 meter from center of camera
+
+	return totalPixels
 
 }
 
-func OpenPort(file string) (*os.File, error) {
-	return os.Open(file)
-}
+// calculates the angle needed to turn in the y direction

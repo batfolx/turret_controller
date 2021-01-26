@@ -147,18 +147,18 @@ func BeginDetectionHeadless() {
 
 			// get the middle of the rectangle
 			/*
-				   we want
-				   for mid X
-				   to be here   max X is here, so midX = ((maxX - minX) / 2)
-						|       |
-						v       v
-				----------------- <- max Y is here
-				|               |
-				|               |
-				|       .       | <- midY = ((maxY - minY) / 2)
-				|               |
-				|               |
-				-----------------
+							   we want
+							   for mid X
+							   to be here   max X is here, so midX = ((maxX - minX) / 2)
+			         |       |
+			         v       v
+							----------------- <- max Y is here
+							|               |
+							|               |
+							|       .       | <- midY = ((maxY - minY) / 2)
+							|               |
+							|               |
+							-----------------
 
 			*/
 			middleX := float32(rect.Max.X) - float32((rect.Max.X-rect.Min.X)/2)

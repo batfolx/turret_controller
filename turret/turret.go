@@ -5,7 +5,9 @@ import (
 	"fmt"
 	"github.com/serial"
 	"gocv.io/x/gocv"
+	"image"
 	"image/color"
+	"math"
 	"time"
 )
 
@@ -126,7 +128,9 @@ func BeginDetectionHeadless() {
 	fmt.Printf("Lower X %f, Upper X %f, Lower Y %f, Upper Y %f\n", lowerX, upperX, lowerY, upperY)
 	fmt.Printf("start reading camera device: %v\n", deviceID)
 
-	moveBy := 1
+	minSize := image.Point{}
+	maxSize := image.Point{}
+
 	for {
 		if ok := webcam.Read(&img); !ok {
 			fmt.Printf("cannot read device %v\n", deviceID)
@@ -137,59 +141,34 @@ func BeginDetectionHeadless() {
 			continue
 		}
 
-		faces := classifier.DetectMultiScale(img)
+		faces := classifier.DetectMultiScaleWithParams(img, 1.3, 3, 0, minSize, maxSize)
 		for _, rect := range faces {
 			gocv.Rectangle(&img, rect, white, 3)
 
 			// get the middle of the rectangle
 			/*
-							   we want
-							   for mid X
-							   to be here   max X is here, so midX = ((maxX - minX) / 2)
-			                        |       |
-			                        v       v
-							----------------- <- max Y is here
-							|               |
-							|               |
-							|       .       | <- midY = ((maxY - minY) / 2)
-							|               |
-							|               |
-							-----------------
+				   we want
+				   for mid X
+				   to be here   max X is here, so midX = ((maxX - minX) / 2)
+						|       |
+						v       v
+				----------------- <- max Y is here
+				|               |
+				|               |
+				|       .       | <- midY = ((maxY - minY) / 2)
+				|               |
+				|               |
+				-----------------
 
 			*/
 			middleX := float32(rect.Max.X) - float32((rect.Max.X-rect.Min.X)/2)
 			middleY := float32(rect.Max.Y) - float32((rect.Max.Y-rect.Min.Y)/2)
-			fmt.Printf("Mid X %f, Mid Y %f, one foot away\n", middleX, middleY)
-			fmt.Printf("Number of pixels across X, one foot away %d, number of pixels across Y, one foot away %d\n", rect.Max.X-rect.Max.Y, rect.Max.Y-rect.Min.Y)
+			//fmt.Printf("Mid X %f, Mid Y %f, one foot away\n", middleX, middleY)
+			//fmt.Printf("Number of pixels across X, one foot away %d, number of pixels across Y, one foot away %d\n", rect.Max.X-rect.Max.Y, rect.Max.Y-rect.Min.Y)
+			degreesX := calculateRotation(int(middleX), int(width/2))
+			degreesY := -calculateRotation(int(middleY), int(height/2))
 
-			baseServo := 0
-			// calibration for X
-			if lowerX < middleX && middleX < upperX {
-				//fmt.Printf("X COORDINATE IS GOOD!\n")
-				baseServo = 0
-			} else if middleX < lowerX {
-				//fmt.Printf("X: MOVE THE CAMERA RIGHT\n")
-				baseServo = moveBy
-			} else if middleX > upperX {
-				//fmt.Printf("X: MOVE THE CAMERA LEFT\n")
-				baseServo = -moveBy
-			}
-
-			sideServo := 0
-			if lowerY < middleY && middleY < upperY {
-				//fmt.Printf("Y COORDINATE IS GOOD!\n")
-				sideServo = 0
-
-			} else if middleY < lowerY {
-				//fmt.Printf("Y: MOVE THE CAMERA DOWN\n")
-				sideServo = -moveBy
-
-			} else if middleY > upperY {
-				//fmt.Printf("Y: MOVE THE CAMERA UP\n")
-				sideServo = moveBy
-			}
-
-			_ = SendData(usb, baseServo, sideServo)
+			_ = SendData(usb, degreesX, degreesY)
 			break
 		}
 
@@ -213,18 +192,25 @@ func SendData(usb *serial.Port, base int, side int) error {
 
 }
 
-// calculates the angle needed to turn in the x direction
-func calculateRotationX(hitPosition int, imageCenter int, imageWidth int) int {
+// calculates the angle needed to turn in the direction
+func calculateRotation(hitPosition int, imageCenter int) int {
 
 	// calculate total pixels needed to turn to the hit position
 	totalPixels := imageCenter - hitPosition
-	//sign := totalPixels < 0
 
 	// translate pixels to an angle to turn, defaulting to 1 if too low
 	// assuming 1 meter from center of camera
+	distanceCm := float32(totalPixels) * CM_PER_PIXEL
 
-	return totalPixels
+	// assume 1m distance for now, maybe get this from a sensor on the pi or something
+	degrees := (math.Atan(float64(distanceCm)/100) * 180) / math.Pi
+	//fmt.Printf("This is degrees %f and distance cm %f\n", degrees, distanceCm)
+	value := degrees
+
+	if -MIN_ANGLE < value && value < MIN_ANGLE {
+		return 0
+	} else {
+		return int(value)
+	}
 
 }
-
-// calculates the angle needed to turn in the y direction

@@ -118,9 +118,12 @@ func BeginDetectionHeadless() {
 		return
 	}
 
-	height := webcam.Get(gocv.VideoCaptureFrameHeight)
-	width := webcam.Get(gocv.VideoCaptureFrameWidth)
+	height := 1024 //webcam.Get(gocv.VideoCaptureFrameHeight)
+	width := 576   //webcam.Get(gocv.VideoCaptureFrameWidth)
 	fmt.Printf("Frame height %f and width %f\n", height, width)
+
+	webcam.Set(gocv.VideoCaptureFrameWidth, float64(height))
+	webcam.Set(gocv.VideoCaptureFrameHeight, float64(width))
 
 	// calculate upper and lower bounds of width and height of the webcam frame
 	lowerX := float32((width / 2) - THRESH_HOLD)

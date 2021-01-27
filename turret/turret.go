@@ -1,14 +1,13 @@
 package turret
 
 import (
-	"../../radar/radar"
 	"fmt"
-	"github.com/serial"
+	"github.com/batfolx/radar"
+	"github.com/tarm/serial"
 	"gocv.io/x/gocv"
 	"image"
 	"image/color"
 	"math"
-	"time"
 )
 
 func BeginDetection() {
@@ -71,15 +70,17 @@ func BeginDetection() {
 func BeginDetectionHeadless() {
 	// set to use a video capture device 0
 	deviceID := 0
+	device := "/dev/ttyUSB0"
 
-	usb, err := radar.GetUSBDevice("/dev/ttyUSB0")
+	fmt.Printf("Opening device %s...\n", device)
+	usb, err := radar.GetUSBDevice(device)
 
 	if err != nil {
-		fmt.Printf("Error in opening USB device %s\v", err)
+		fmt.Printf("Error in opening USB device, %s %s\v", device, err)
 		return
 	}
 
-	//radar.RecvDevice(usb, buffer, '\n')
+	fmt.Printf("USB successfully opened!\nOpening webcam...\n")
 	// open webcam
 	webcam, err := gocv.OpenVideoCapture(deviceID)
 	if err != nil {
@@ -87,6 +88,7 @@ func BeginDetectionHeadless() {
 		return
 	}
 	defer webcam.Close()
+	fmt.Printf("Successfully opened webcam! Continuing...\n")
 
 	// prepare image matrix
 	img := gocv.NewMat()
@@ -99,9 +101,9 @@ func BeginDetectionHeadless() {
 	}
 
 	// open display window
-	window := gocv.NewWindow("Face Detect")
-	window.ResizeWindow(640, 480)
-	defer window.Close()
+	//window := gocv.NewWindow("Face Detect")
+	//window.ResizeWindow(640, 480)
+	//defer window.Close()
 
 	white := color.RGBA{
 		R: 255,
@@ -119,6 +121,7 @@ func BeginDetectionHeadless() {
 	height := webcam.Get(gocv.VideoCaptureFrameHeight)
 	width := webcam.Get(gocv.VideoCaptureFrameWidth)
 	fmt.Printf("Frame height %f and width %f\n", height, width)
+
 	// calculate upper and lower bounds of width and height of the webcam frame
 	lowerX := float32((width / 2) - THRESH_HOLD)
 	upperX := float32((width / 2) + THRESH_HOLD)
@@ -134,7 +137,6 @@ func BeginDetectionHeadless() {
 	for {
 		if ok := webcam.Read(&img); !ok {
 			fmt.Printf("cannot read device %v\n", deviceID)
-
 			return
 		}
 		if img.Empty() {
@@ -172,9 +174,9 @@ func BeginDetectionHeadless() {
 			break
 		}
 
-		window.IMShow(img)
-		window.WaitKey(1)
-		time.Sleep(1)
+		//window.IMShow(img)
+		//window.WaitKey(1)
+		//time.Sleep(1)
 
 	}
 }

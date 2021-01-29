@@ -101,9 +101,9 @@ func BeginDetectionHeadless() {
 	}
 
 	// open display window
-	//window := gocv.NewWindow("Face Detect")
-	//window.ResizeWindow(640, 480)
-	//defer window.Close()
+	window := gocv.NewWindow("Face Detect")
+	window.ResizeWindow(640, 480)
+	defer window.Close()
 
 	white := color.RGBA{
 		R: 255,
@@ -147,6 +147,7 @@ func BeginDetectionHeadless() {
 		}
 
 		faces := classifier.DetectMultiScaleWithParams(img, 1.3, 3, 0, minSize, maxSize)
+
 		for _, rect := range faces {
 			gocv.Rectangle(&img, rect, white, 3)
 
@@ -155,8 +156,8 @@ func BeginDetectionHeadless() {
 				   we want
 				   for mid X
 				   to be here   max X is here, so midX = maxX -  ((maxX - minX) / 2)
-				        |       |
-				        v       v
+						|       |
+						v       v
 				----------------- <- max Y is here
 				|               |
 				|               |
@@ -174,11 +175,13 @@ func BeginDetectionHeadless() {
 			degreesY := -calculateRotation(int(middleY), int(height/2))
 
 			_ = SendData(usb, degreesX, degreesY)
+			//fmt.Printf("", degreesY)
+
 			break
 		}
 
-		//window.IMShow(img)
-		//window.WaitKey(1)
+		window.IMShow(img)
+		window.WaitKey(1)
 		//time.Sleep(1)
 
 	}

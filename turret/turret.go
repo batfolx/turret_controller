@@ -70,7 +70,7 @@ func BeginDetection() {
 func BeginDetectionHeadless() {
 	// set to use a video capture device 0
 	deviceID := 0
-	device := "/dev/ttyUSB0"
+	device := "/dev/ttyUSB17"
 
 	fmt.Printf("Opening device %s...\n", device)
 	usb, err := radar.GetUSBDevice(device)
@@ -136,6 +136,8 @@ func BeginDetectionHeadless() {
 
 	minSize := image.Point{}
 	maxSize := image.Point{}
+	fire := false
+	thresh := 0
 
 	for {
 		if ok := webcam.Read(&img); !ok {
@@ -172,10 +174,21 @@ func BeginDetectionHeadless() {
 			//fmt.Printf("Mid X %f, Mid Y %f, one foot away\n", middleX, middleY)
 			//fmt.Printf("Number of pixels across X, one foot away %d, number of pixels across Y, one foot away %d\n", rect.Max.X-rect.Max.Y, rect.Max.Y-rect.Min.Y)
 			degreesX := calculateRotation(int(middleX), int(width/2))
-			degreesY := -calculateRotation(int(middleY), int(height/2))
+			degreesY := calculateRotation(int(middleY), int(height/2))
 
-			_ = SendData(usb, degreesX, degreesY)
-			//fmt.Printf("", degreesY)
+			fmt.Printf("This is degrees X %d, degrees Y %d, thresh %d and fire %v\n", degreesX, degreesY, thresh, fire)
+			// means that target is directly in center of the image, we fire
+			if degreesY == 0 && degreesX == 0 {
+				thresh += 1
+				if thresh > THRESH_HOLD {
+					fire = true
+				}
+			} else {
+				thresh = 0
+				fire = false
+			}
+
+			_ = SendData(usb, degreesX, degreesY, fire)
 
 			break
 		}
@@ -188,10 +201,10 @@ func BeginDetectionHeadless() {
 }
 
 // sends the data over the usb port
-func SendData(usb *serial.Port, base int, side int) error {
+func SendData(usb *serial.Port, base int, side int, fire bool) error {
 
 	// create bytes payload and send
-	bytes := []byte(fmt.Sprintf("{\"base\": %d, \"side\": %d}\000", base, side))
+	bytes := []byte(fmt.Sprintf("{\"base\":%d,\"side\":%d,\"fire\":%v}\000", base, side, fire))
 	_, err := (*usb).Write(bytes)
 	if err != nil {
 		return err

@@ -1,6 +1,6 @@
 package turret
 
-const THRESH_HOLD = 15
+const THRESH_HOLD = 5
 const MIN_ANGLE = 1
 
 // here is a manually determined distance per pixel for my webcam
